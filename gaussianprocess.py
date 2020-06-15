@@ -140,7 +140,7 @@ def plot1D(filename = 'GP_results/test1.txt', magnet_list = ['h13', 'v13', 'h31'
     f_mean.savefig(f'GP_results/dis_mean_M1-{timestamp}.pdf')
     f_acq.subplots_adjust( wspace = 0.3, top = None, bottom = None )
     f_acq.savefig(f'GP_results/dis_acq_M1-{timestamp}.pdf')
-    plt.show()
+    #plt.show()
     plt.close()
     return(None)
 
@@ -151,7 +151,7 @@ def plot2D(filename = 'GP_results/test2.txt', magnet_list = ['h13', 'v13', 'h31'
     xy_observed = np.asarray(reader[:,0:2])      # Hardcoded!!!!!!!!!
     f_observed = np.asarray(reader[:,-1])        # Hardcoded!!!!!!!!!
 
-    n_rows = math.ceil(len(f_observed)/5)
+    n_rows = math.ceil(len(f_observed)/5) + 1
     f_mean, sub_mean = plt.subplots(n_rows, 5, sharex=True, sharey=True)
     f_mean.tight_layout() # to adjust spacing between subplots
     f_sigma, sub_sigma = plt.subplots(n_rows, 5, sharex=True, sharey=True)
@@ -161,7 +161,7 @@ def plot2D(filename = 'GP_results/test2.txt', magnet_list = ['h13', 'v13', 'h31'
 
     num_points = 100
     XY_grid = np.mgrid[-10:10:0.3, -10:10:0.3].reshape(2,-1).T  # Hardcoded!!!!!!!!!
-    for i in range(n_rows):
+    for i in range(n_rows-1):
         j = 0
         while len(f_observed) > 5*i + j and j < 5:
             XY = xy_observed[0:(5*i+j+1)]
@@ -171,7 +171,6 @@ def plot2D(filename = 'GP_results/test2.txt', magnet_list = ['h13', 'v13', 'h31'
             yy = np.asarray(XY_grid[:,1])
             xo = np.asarray(XY[:,0]).reshape(-1)
             yo = np.asarray(XY[:,1]).reshape(-1)
-
             sub_mean[i,j].scatter( xx, yy, c=mean.T[0],
                     vmin = min(mean.T[0]), vmax = max(mean.T[0]), edgecolors='none', cmap = 'GnBu')
             sub_mean[i,j].scatter(xo, yo, c='k', marker='s')
@@ -201,7 +200,7 @@ def plot2D(filename = 'GP_results/test2.txt', magnet_list = ['h13', 'v13', 'h31'
     f_sigma.savefig(f'GP_results/dis_sigma_M1_M2-{timestamp}.pdf')
     f_acq.subplots_adjust( wspace = 0.3, top = None, bottom = None )
     f_acq.savefig(f'GP_results/dis_acq_M1_M2-{timestamp}.pdf')
-    plt.show()
+    #plt.show()
     plt.close()
 
 #evolution()
