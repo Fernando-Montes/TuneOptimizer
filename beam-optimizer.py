@@ -1,4 +1,4 @@
-import os, shutil, signal
+import os, shutil, signal, re
 import sys, math
 import datetime
 import random
@@ -14,16 +14,16 @@ from GPyOpt import Design_space  ## GPyOpt design space
 from GPyOpt.models import GPModel
 
 # Comment if not working with magnets and packages are not installed
-#from epics import caput, caget
-#from setup import GetBeamPos, GetQuads, SetQuads, SaveIm, Dist, corr_set_pvs
-#from setup import h13_cset, h13_ird, h31_cset, h31_ird
-#from setup import v13_cset, v13_ird, v31_cset, v31_ird
+from epics import caput, caget
+from setup import GetBeamPos, GetQuads, SetQuads, SaveIm, Dist, corr_set_pvs
+from setup import h13_cset, h13_ird, h31_cset, h31_ird
+from setup import v13_cset, v13_ird, v31_cset, v31_ird
 
 tbl = 'n' # troubleshooting flag
-sandbox = 'y' # if 'y' uses madeup function
+sandbox = 'n' # if 'y' uses madeup function
 
 magnet_list = ['h13', 'v13', 'h31', 'v31']
-magnet_list = ['v13']
+#magnet_list = ['v13']
 #magnet_list = ['h13', 'h31']
 
 num_points = 1000000  # Number of points considered in phase space sampling
@@ -41,15 +41,14 @@ spaceArray = [ {'name': m, 'type': 'continuous', 'domain': (-10, 10)} for m in m
 space = Design_space(spaceArray)
 np.set_printoptions(precision=2)
 
+#import current state
+#Get initial quad values
+q1_init, q2_init, q3_init, q4_init= GetQuads()
 #list for corrector magnet values
 magnet_values = [0 for i in range(len(magnet_list))]
 
 while (cont == 'y'):
 	if sandbox != 'y':
-
-		#import current state
-		#Get initial quad values
-		q1_init, q2_init, q3_init, q4_init= GetQuads()
 
 		#Tuning Q1 and Q2
 		#take picture with all at init values
@@ -126,7 +125,7 @@ while (cont == 'y'):
 	#print(reader)
 	x_observed = np.asarray(reader[:,0:len(magnet_list)])
 	f_observed = np.asarray(reader[:,-1])
-
+	
 	print(x_observed)
 	print(f_observed)
 	# Use GP regression to fit the data
@@ -136,15 +135,19 @@ while (cont == 'y'):
 
 	m.kern.lengthscale.unconstrain_positive()
 	m.kern.lengthscale.set_prior(GPy.priors.Gaussian(10,2))
-	#m.kern.lengthscale.set_prior(GPy.priors.Gaussian(5,2))
+	#m.kern.lengthscale.set_prior(GPy.priors.Gaussian(5,2))        
 
 	m.Gaussian_noise.variance.unconstrain_positive()
 	m.Gaussian_noise.variance.set_prior(GPy.priors.Gaussian(1,0.5))
-
+	
+	
 	m.optimize('bfgs', max_iters=100)  # Hyper-parameters are optimized here
 	print(m)
-	f= open(f"GP_results/model_optimization_{timestamp}.txt", "a+")
-	f.write(str(m)+'\n')
+	
+	f = open(f"GP_results/opt_params_{timestamp}.txt", "a+")
+	ansi_escape = re.compile(r'\x1B\[[0-?]*[ -/]*[@-~]')
+	text = ansi_escape.sub('', str(m))
+	f.write(text + '\n')
 	f.close()
 
 	# Find next point
@@ -155,8 +158,8 @@ while (cont == 'y'):
 	alpha_full = acq.acquisition_function(X_grid)
 	magnet_values = X_grid[np.argmin(alpha_full),:]
 
-	print("Min LCB: ", np.argmin(alpha_full), min(alpha_full), X_grid[np.argmin(alpha_full),:])
-	print("Max LCB: ", np.argmax(alpha_full), max(alpha_full), X_grid[np.argmax(alpha_full),:])
+	print("Min LCB: ", np.argmin(alpha_full), min(alpha_full), X_grid[np.argmin(alpha_full),:]) 
+	print("Max LCB: ", np.argmax(alpha_full), max(alpha_full), X_grid[np.argmax(alpha_full),:]) 
 
 	if (len(magnet_list)==1):
 		gp.plot1D(f'GP_results/correctorValues_Distance_{timestamp}.txt')
@@ -164,9 +167,9 @@ while (cont == 'y'):
 		gp.plot2D(f'GP_results/correctorValues_Distance_{timestamp}.txt')
 
 	#save new corrector values to file
-	#f = open(f"GP_results/newCorrectorValues_{timestamp}.txt", "a+")
-	#f.write('%s' % ' '.join(map('{:.4f}'.format, list(magnet_values))) + '\n')
-	#f.close()
+	f = open(f"GP_results/newCorrectorValues_{timestamp}.txt", "a+")
+	f.write('%s' % ' '.join(map('{:.4f}'.format, list(magnet_values))) + '\n')
+	f.close()
 
 	if sandbox != 'y':
 		#set new corrector values
@@ -185,8 +188,10 @@ while (cont == 'y'):
 			if (new_vals=='y'):
 				magnet_values = input("Enter new current values for magnets in order (i.e. 10, -10):")
 				magnet_values = np.asarray([float(x.lstrip().rstrip()) for x in magnet_values.split(",")])
-
+				
 				#set new corrector values
 				for i,m in enumerate(magnet_list):
 					caput(corr_set_pvs[m], magnet_values[i], wait= True)
 					print("Correctors set.")
+
+
