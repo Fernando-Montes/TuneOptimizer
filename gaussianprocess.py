@@ -114,7 +114,7 @@ def plot1D(filename = 'GP_results/test1.txt', magnet_list = ['h13', 'v13', 'h31'
     f_acq, sub_acq = plt.subplots(n_rows, 5, sharex=True, sharey=True)
     f_acq.tight_layout() # to adjust spacing between subplots
 
-    num_points = 10
+    num_points = 1000
     X_grid = np.linspace(-10, 10, num_points)[:,None]
     #X_grid = np.linspace(-15, 15, num_points)[:,None]
     for i in range(n_rows):
@@ -150,63 +150,60 @@ def plot2D(filename = 'GP_results/test2.txt', magnet_list = ['h13', 'v13', 'h31'
     reader = np.asmatrix(np.loadtxt(filename))
     xy_observed = np.asarray(reader[:,0:2])      # Hardcoded!!!!!!!!!
     f_observed = np.asarray(reader[:,-1])        # Hardcoded!!!!!!!!!
-    #for i in range(3, len(f_observed)):
-    for i in range(len(f_observed)-1, len(f_observed)):
-        num_points = 100
-        XY_grid = np.mgrid[-10:10:0.3, -10:10:0.3].reshape(2,-1).T  # Hardcoded!!!!!!!!!
-        #XY_grid = np.mgrid[-15:15:0.3, -15:15:0.3].reshape(2,-1).T  # Hardcoded!!!!!!!!!
-        XY = xy_observed[0:(i+1)]
-        Z = f_observed[0:(i+1)]
-        mean, Cov, variance, m = GP_analysis(XY, Z, XY_grid)
 
-        f, (meanFig, sigmaFig, LCBFig) = plt.subplots(3, 1, sharex=True)
-        xx = np.asarray(XY_grid[:,0])
-        yy = np.asarray(XY_grid[:,1])
-        xo = np.asarray(XY[:,0]).reshape(-1)
-        yo = np.asarray(XY[:,1]).reshape(-1)
+    n_rows = math.ceil(len(f_observed)/5)
+    f_mean, sub_mean = plt.subplots(n_rows, 5, sharex=True, sharey=True)
+    f_mean.tight_layout() # to adjust spacing between subplots
+    f_sigma, sub_sigma = plt.subplots(n_rows, 5, sharex=True, sharey=True)
+    f_sigma.tight_layout() # to adjust spacing between subplots
+    f_acq, sub_acq = plt.subplots(n_rows, 5, sharex=True, sharey=True)
+    f_acq.tight_layout() # to adjust spacing between subplots
 
-        mf1 = meanFig.scatter( xx, yy, c=mean.T[0],
-                vmin = min(mean.T[0]), vmax = max(mean.T[0]), edgecolors='none', cmap = 'GnBu')
-        cb1axes = f.add_axes([0.9, 0.653, 0.03, 0.227])
-        cb1 = plt.colorbar(mf1, cax = cb1axes)
-        cb1.ax.tick_params(labelsize = 9)
-        meanFig.scatter(xo, yo, c='k', marker='s')
-        meanFig.set(ylabel='Magnet 2 current')
-        meanFig.title.set_text('Mean, sigma and LCB')
+    num_points = 100
+    XY_grid = np.mgrid[-10:10:0.3, -10:10:0.3].reshape(2,-1).T  # Hardcoded!!!!!!!!!
+    for i in range(n_rows):
+        j = 0
+        while len(f_observed) > 5*i + j and j < 5:
+            XY = xy_observed[0:(5*i+j+1)]
+            Z = f_observed[0:(5*i+j+1)]
+            mean, Cov, variance, m = GP_analysis(XY, Z, XY_grid)
+            xx = np.asarray(XY_grid[:,0])
+            yy = np.asarray(XY_grid[:,1])
+            xo = np.asarray(XY[:,0]).reshape(-1)
+            yo = np.asarray(XY[:,1]).reshape(-1)
 
-        sf1 = sigmaFig.scatter( xx, yy, c=variance,
-                vmin = min(variance), vmax = max(variance), edgecolors='none')
-        cb2axes = f.add_axes([0.9, 0.381, 0.03, 0.227])
-        cb2 = plt.colorbar(sf1, cax = cb2axes)
-        cb2.ax.tick_params(labelsize = 9)
-        sigmaFig.scatter(xo, yo, c='white')
-        sigmaFig.set(ylabel='Magnet 2 current')
+            sub_mean[i,j].scatter( xx, yy, c=mean.T[0],
+                    vmin = min(mean.T[0]), vmax = max(mean.T[0]), edgecolors='none', cmap = 'GnBu')
+            sub_mean[i,j].scatter(xo, yo, c='k', marker='s')
 
-        model = GPModel(optimize_restarts=1, verbose=True)
-        model.model = m
-        space = Design_space([{'name': 'var1', 'type': 'continuous', 'domain': (-10, 10)},
-                              {'name': 'var2', 'type': 'continuous', 'domain': (-10, 10)}])
-        #space = Design_space([{'name': 'var1', 'type': 'continuous', 'domain': (-15, 15)},
-        #                      {'name': 'var2', 'type': 'continuous', 'domain': (-15, 15)}])
-        acq = AcquisitionLCB(model, space, exploration_weight = 2)       # Hardcoded!!!!!!!!!
-        alpha_full = acq.acquisition_function(XY_grid)
-        pf1 = LCBFig.scatter( xx, yy, c=alpha_full.T[0],
-            vmin = min(alpha_full.T[0]), vmax = max(alpha_full.T[0]), edgecolors='none', cmap = 'GnBu' )
-        cb3axes = f.add_axes([0.9, 0.11, 0.03, 0.227])
-        cb3 = plt.colorbar(pf1, cax = cb3axes)
-        cb3.ax.tick_params(labelsize = 9)
-        LCBFig.scatter(xo, yo, c='k', marker='s' )
-        minXY = XY_grid[np.argmin(alpha_full)]
-        LCBFig.scatter(minXY[0],minXY[1], marker = 'P')
-        LCBFig.set(xlabel='Magnet 1 current')
-        LCBFig.set(ylabel='Magnet 2 current')
+            sub_sigma[i,j].scatter( xx, yy, c=variance,
+                    vmin = min(variance), vmax = max(variance), edgecolors='none')
+            sub_sigma[i,j].scatter(xo, yo, c='white')
 
-        timestamp = (datetime.datetime.now()).strftime("%m-%d_%H-%M-%S")
-        f.subplots_adjust()
-        plt.savefig(f'GP_results/Dis_M1_M2_{timestamp}.pdf')
-        plt.show()
-        plt.close()
+            model = GPModel(optimize_restarts=1, verbose=True)
+            model.model = m
+            space = Design_space([{'name': 'var1', 'type': 'continuous', 'domain': (-10, 10)},
+                                  {'name': 'var2', 'type': 'continuous', 'domain': (-10, 10)}])
+            acq = AcquisitionLCB(model, space, exploration_weight = 1)       # Hardcoded!!!!!!!!!
+            alpha_full = acq.acquisition_function(XY_grid)
+            sub_acq[i,j].scatter( xx, yy, c=alpha_full.T[0],
+                vmin = min(alpha_full.T[0]), vmax = max(alpha_full.T[0]), edgecolors='none', cmap = 'GnBu' )
+            sub_acq[i,j].scatter(xo, yo, c='k', marker='s' )
+            minXY = XY_grid[np.argmin(alpha_full)]
+            sub_acq[i,j].scatter(minXY[0],minXY[1], marker = 'P')
+
+            j = j+1
+
+    timestamp = (datetime.datetime.now()).strftime("%m-%d_%H-%M-%S")
+    f_mean.subplots_adjust( wspace = 0.3, top = None, bottom = None )
+    f_mean.savefig(f'GP_results/dis_mean_M1_M2-{timestamp}.pdf')
+    f_sigma.subplots_adjust( wspace = 0.3, top = None, bottom = None )
+    f_sigma.savefig(f'GP_results/dis_sigma_M1_M2-{timestamp}.pdf')
+    f_acq.subplots_adjust( wspace = 0.3, top = None, bottom = None )
+    f_acq.savefig(f'GP_results/dis_acq_M1_M2-{timestamp}.pdf')
+    plt.show()
+    plt.close()
 
 #evolution()
-plot1D()
+#plot1D()
 #plot2D()
