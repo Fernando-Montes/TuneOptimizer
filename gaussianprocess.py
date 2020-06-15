@@ -87,8 +87,8 @@ def GP_analysis(X, Y, X_grid):
     k = GPy.kern.RBF(input_dim=X.shape[1])   # Hardcoded!!!!!!!!!!!!!!!!!!
     m = GPy.models.GPRegression(X, Y, k)
     m.kern.lengthscale.unconstrain_positive()
-    m.kern.lengthscale.set_prior(GPy.priors.Gaussian(10,2))   
-    #m.kern.lengthscale.set_prior(GPy.priors.Gaussian(5,2))   
+    m.kern.lengthscale.set_prior(GPy.priors.Gaussian(10,2))
+    #m.kern.lengthscale.set_prior(GPy.priors.Gaussian(5,2))
 
     m.Gaussian_noise.variance.unconstrain_positive()
     m.Gaussian_noise.variance.set_prior(GPy.priors.Gaussian(1,0.5))
@@ -108,37 +108,40 @@ def plot1D(filename = 'GP_results/test1.txt', magnet_list = ['h13', 'v13', 'h31'
     x_observed = np.asarray(reader[:,0])      # Hardcoded!!!!!!!!!
     f_observed = np.asarray(reader[:,-1])     # Hardcoded!!!!!!!!!
 
-    #for i in range(3, len(f_observed)):
-    for i in range(len(f_observed)-1, len(f_observed)):
-        plt.subplot(211)
-        num_points = 1000
-        X_grid = np.linspace(-10, 10, num_points)[:,None]
-        #X_grid = np.linspace(-15, 15, num_points)[:,None]
-        X = x_observed[0:(i+1)]
-        Y = f_observed[0:(i+1)]
+    n_rows = math.ceil(len(f_observed)/5)
+    f_mean, sub_mean = plt.subplots(n_rows, 5, sharex=True, sharey=True)
+    f_mean.tight_layout() # to adjust spacing between subplots
+    f_acq, sub_acq = plt.subplots(n_rows, 5, sharex=True, sharey=True)
+    f_acq.tight_layout() # to adjust spacing between subplots
 
-        mean, Cov, variance, m = GP_analysis(X, Y, X_grid)
-        plt.plot( X_grid, mean)
-        plt.fill_between( X_grid[:,0], (mean.T+variance.T).T[:,0] , (mean.T-variance.T).T[:,0] , facecolor="gray", alpha=0.15 )
-        plt.scatter ( X, Y )
-        plt.ylabel("Distance [px]")
+    num_points = 10
+    X_grid = np.linspace(-10, 10, num_points)[:,None]
+    #X_grid = np.linspace(-15, 15, num_points)[:,None]
+    for i in range(n_rows):
+        j = 0
+        while len(f_observed) > 5*i + j and j < 5:
+            X = x_observed[0:(5*i+j+1)]
+            Y = f_observed[0:(5*i+j+1)]
+            mean, Cov, variance, m = GP_analysis(X, Y, X_grid)
+            sub_mean[i,j].plot( X_grid, mean)
+            sub_mean[i,j].fill_between( X_grid[:,0], (mean.T+variance.T).T[:,0] , (mean.T-variance.T).T[:,0] , facecolor="gray", alpha=0.15 )
+            sub_mean[i,j].scatter ( X, Y )
 
-        axes = plt.gca()
-        axes.set_ylim([-5,40])
-        plt.subplot(212)
-        model = GPModel(optimize_restarts=1, verbose=True)
-        model.model = m
-        space = Design_space([{'name': 'var1', 'type': 'continuous', 'domain': (-10, 10)}])
-        #space = Design_space([{'name': 'var1', 'type': 'continuous', 'domain': (-15, 15)}])
-        acq = AcquisitionLCB(model, space, exploration_weight = 3)       # Hardcoded!!!!!!!!!
-        alpha_full = acq.acquisition_function(X_grid)
-        plt.plot( X_grid, alpha_full )
-        plt.xlabel("Magnet current")
-        plt.ylabel("LCB")
-        timestamp = (datetime.datetime.now()).strftime("%m-%d_%H-%M-%S")
-        plt.savefig(f'GP_results/dis_M1-{timestamp}.pdf')
-        plt.show()
-        plt.close()
+            model = GPModel(optimize_restarts=1, verbose=True)
+            model.model = m
+            space = Design_space([{'name': 'var1', 'type': 'continuous', 'domain': (-10, 10)}])
+            acq = AcquisitionLCB(model, space, exploration_weight = 1)       # Hardcoded!!!!!!!!!
+            alpha_full = acq.acquisition_function(X_grid)
+            sub_acq[i,j].plot( X_grid, alpha_full)
+            j = j+1
+
+    timestamp = (datetime.datetime.now()).strftime("%m-%d_%H-%M-%S")
+    f_mean.subplots_adjust( wspace = 0.3, top = None, bottom = None )
+    f_mean.savefig(f'GP_results/dis_mean_M1-{timestamp}.pdf')
+    f_acq.subplots_adjust( wspace = 0.3, top = None, bottom = None )
+    f_acq.savefig(f'GP_results/dis_acq_M1-{timestamp}.pdf')
+    plt.show()
+    plt.close()
     return(None)
 
 def plot2D(filename = 'GP_results/test2.txt', magnet_list = ['h13', 'v13', 'h31', 'v31']):
@@ -205,6 +208,5 @@ def plot2D(filename = 'GP_results/test2.txt', magnet_list = ['h13', 'v13', 'h31'
         plt.close()
 
 #evolution()
-#plot1D()
+plot1D()
 #plot2D()
-
